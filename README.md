@@ -114,6 +114,7 @@ make CC=ppc-gcc -j12
 | `ppc_compile_worker.py` | Worker daemon (runs on each Mac) |
 | `ppc_compile_coordinator.py` | Coordinator library/daemon |
 | `ppc_compile_wrapper.py` | Drop-in gcc/clang replacement |
+| `sync_generated_files.sh` | Sync generated .inc/.def files to workers |
 | `config.py` | Worker configuration |
 
 ## Systemd/Launchd Service
@@ -178,8 +179,56 @@ ppc-gcc -c test.c -o test.o
 ### Headers not found
 The system currently doesn't transfer headers. Use `-I` with absolute paths to system headers.
 
+## Building Complex Projects (LLVM, etc.)
+
+For projects that generate intermediate files (`.inc`, `.def`, `.gen`) during compilation, you need to:
+
+### 1. Deploy Source to All Workers
+
+Each worker needs the source tree at the same relative path:
+
+```bash
+# Package source on coordinator
+cd ~ && tar czf project-src.tar.gz project-src project-build/include
+
+# Copy to each worker
+scp project-src.tar.gz user@192.168.0.179:~
+ssh user@192.168.0.179 'cd ~ && tar xzf project-src.tar.gz'
+```
+
+### 2. Sync Generated Files Periodically
+
+Generated files are created during build and must be synced to workers:
+
+```bash
+# Set up workers
+export PPC_DISTCC_WORKERS="selenamac@192.168.0.179"
+export PPC_DISTCC_PASSWORD="your_password"
+
+# Start sync script (syncs every 2 minutes)
+./sync_generated_files.sh ~/llvm-3.9-build 120 &
+
+# Start build
+make -j4
+```
+
+### Path Translation
+
+The worker automatically translates paths between machines. Paths like `/Users/sophia/...` on the coordinator are translated to `/Users/selenamac/...` on the worker (based on `$HOME`).
+
+Configure additional translations in `ppc_compile_worker.py`:
+
+```python
+PATH_TRANSLATIONS = [
+    ('/Users/sophia/', LOCAL_HOME + '/'),
+    ('/Users/selenamac/', LOCAL_HOME + '/'),
+]
+```
+
 ## TODO
 
+- [x] Cross-machine path translation
+- [x] Generated file sync script
 - [ ] Automatic header dependency tracking
 - [ ] Precompiled header support
 - [ ] SSH-based worker auto-start
