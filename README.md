@@ -12,13 +12,14 @@ PPC-DistCC distributes C/C++ compilation jobs across multiple PowerPC Macs on yo
 │  make -j8 CC=ppc-gcc CXX=ppc-g++                            │
 └─────────────────────────────────────────────────────────────┘
                               │
-        ┌─────────────────────┼─────────────────────┐
-        │                     │                     │
-        ▼                     ▼                     ▼
-   ┌─────────┐          ┌─────────┐          ┌─────────┐
-   │ G5 Mac  │          │ G4 Mac  │          │ G4 Mac  │
-   │ 2x 970  │          │ 2x 7447 │          │ 1x 7455 │
-   └─────────┘          └─────────┘          └─────────┘
+   ┌──────────────────────────┼──────────────────────────┐
+   │                          │                          │
+   ▼                          ▼                          ▼
+┌─────────┐            ┌─────────────┐            ┌─────────┐
+│ G5 Mac  │            │ POWER8 S824 │            │ G5 Mac  │
+│ 2x 970  │            │ 128 threads │            │ 2x 970  │
+└─────────┘            │ (cross-comp)│            └─────────┘
+                       └─────────────┘
 ```
 
 ## Features
@@ -123,11 +124,118 @@ make CC=ppc-gcc -j12
 
 | Machine | CPU | Weight | Notes |
 |---------|-----|--------|-------|
+| **IBM POWER8 S824** | POWER8 (128 threads) | 10.0 | Cross-compiler, Linux ppc64le |
 | Power Mac G5 | PPC 970 (2.0-2.7GHz) | 2.0 | Dual-core recommended |
 | Power Mac G4 (MDD) | PPC 7447 (1.25-1.42GHz) | 1.5 | Dual-processor |
 | PowerBook G4 | PPC 7447/7455 | 1.0 | Single core |
 | iMac G4/G5 | Various | 1.0-1.5 | |
 | Mac mini G4 | PPC 7447 (1.25-1.5GHz) | 1.0 | |
+
+## POWER8 Cross-Compilation (Linux → Darwin/PPC)
+
+The IBM POWER8 can cross-compile Darwin/PPC code from Linux, providing massive parallelism (128 hardware threads) to accelerate builds.
+
+```
+┌────────────────────────────────────────────────────────┐
+│              POWER8 S824 (Linux ppc64le)               │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │  cctools (powerpc-apple-darwin9-as, ld, etc.)   │   │
+│  │  GCC 10.5.0 cross-compiler                       │   │
+│  │  Target: powerpc-apple-darwin9 (Mac OS X)       │   │
+│  └─────────────────────────────────────────────────┘   │
+│         128 hardware threads (SMT8)                    │
+│         576 GB RAM                                     │
+└────────────────────────────────────────────────────────┘
+```
+
+### How It Works
+
+The POWER8 runs Linux (ppc64le) but uses a cross-compiler to produce Mach-O object files for Mac OS X (powerpc-apple-darwin9). The worker script receives source files, compiles them with the cross-compiler, and returns Darwin-compatible `.o` files.
+
+### Quick Setup
+
+```bash
+# On the POWER8 (Ubuntu 20.04 ppc64le):
+./setup_power8_crosscompiler.sh
+
+# This installs:
+# - cctools (Apple binutils: as, ld, etc.)
+# - GCC 10.5.0 (powerpc-apple-darwin9-gcc)
+# - Worker daemon (ppc_compile_worker_power8.py)
+# - systemd service (ppc-distcc-worker)
+
+# Start the worker:
+sudo systemctl start ppc-distcc-worker
+
+# Add POWER8 to your coordinator's wrapper hosts:
+export PPC_DISTCC_HOSTS="192.168.0.50,192.168.0.130,192.168.0.179"
+```
+
+### Manual Installation
+
+If the script fails or you need custom configuration:
+
+```bash
+# 1. Install dependencies
+sudo apt-get install build-essential libgmp-dev libmpfr-dev libmpc-dev \
+    texinfo bison flex libtool automake wget clang llvm-dev
+
+# 2. Build cctools
+wget https://github.com/tpoechtrager/cctools-port/archive/refs/heads/master.zip
+unzip master.zip && cd cctools-port-master/cctools
+./autogen.sh
+./configure --target=powerpc-apple-darwin9 --prefix=$HOME/darwin-cross-ppc/toolchain
+make -j$(nproc) && make install
+
+# 3. Create 'as' symlink (GCC needs it)
+ln -sf powerpc-apple-darwin9-as $HOME/darwin-cross-ppc/toolchain/bin/as
+
+# 4. Build GCC cross-compiler
+wget https://ftp.gnu.org/gnu/gcc/gcc-10.5.0/gcc-10.5.0.tar.xz
+tar xf gcc-10.5.0.tar.xz && cd gcc-10.5.0
+contrib/download_prerequisites
+mkdir ../gcc-build && cd ../gcc-build
+../gcc-10.5.0/configure \
+    --target=powerpc-apple-darwin9 \
+    --prefix=$HOME/darwin-cross-ppc/toolchain \
+    --enable-languages=c,c++ \
+    --disable-bootstrap --disable-multilib --disable-nls
+make -j$(nproc) all-gcc && make install-gcc
+```
+
+### Testing the Cross-Compiler
+
+```bash
+export PATH=$HOME/darwin-cross-ppc/toolchain/bin:$PATH
+
+# Compile a test file
+echo 'int main() { return 42; }' > test.c
+powerpc-apple-darwin9-gcc -c test.c -o test.o
+
+# Verify it's a Mach-O object
+file test.o
+# Output: test.o: Mach-O ppc_7400 object
+```
+
+### Known Issues (POWER8)
+
+| Issue | Solution |
+|-------|----------|
+| Type conflicts (int64_t redefinition) | Script patches cctools headers automatically |
+| fixincludes error during GCC build | Script creates dummy fixinc.sh |
+| Wrong assembler used | Script creates `as` symlink in toolchain/bin |
+| Ubuntu 22.04+ not supported | Use Ubuntu 20.04 (last POWER8-supported) |
+
+### Performance with POWER8
+
+With POWER8 (128 threads) + 2x G5 (4 threads each):
+
+| Build | Without POWER8 | With POWER8 | Speedup |
+|-------|---------------|-------------|---------|
+| LLVM 3.9 | ~3 hours | ~45 min | 4x |
+| GCC 10 | ~4 hours | ~1 hour | 4x |
+
+The POWER8 handles the bulk of compilation jobs while G5s process overflow.
 
 ## Compilers Supported
 
@@ -146,6 +254,7 @@ make CC=ppc-gcc -j12
 | `ppc_compile_wrapper.py` | Drop-in gcc/clang replacement |
 | `sync_generated_files.sh` | Sync generated .inc/.def files to workers |
 | `config.py` | Worker configuration |
+| `setup_power8_crosscompiler.sh` | **NEW:** One-script POWER8 cross-compiler setup |
 
 ## Systemd/Launchd Service
 
@@ -259,6 +368,7 @@ PATH_TRANSLATIONS = [
 
 - [x] Cross-machine path translation
 - [x] Generated file sync script
+- [x] **POWER8 cross-compiler support** (128 threads!)
 - [ ] Automatic header dependency tracking
 - [ ] Precompiled header support
 - [ ] SSH-based worker auto-start
