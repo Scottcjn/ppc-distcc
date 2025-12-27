@@ -9,7 +9,7 @@ Compatible with Python 2.5+ and Python 3.7+ (Tiger through modern PPC Linux)
 Usage: python ppc_compile_worker.py [--port 5555]
 """
 
-from __future__ import print_function, division
+from __future__ import print_function, division, with_statement
 
 import socket
 import subprocess
@@ -109,7 +109,8 @@ def get_system_info():
         result = subprocess.Popen(['sysctl', '-n', 'vm.loadavg'],
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = result.communicate()
-        load_str = out.strip().strip(b'{}').split()[0]
+        # Strip "{ 1.23 0.45 0.67 }" format - compatible with Py2.5+
+        load_str = out.strip().replace('{', '').replace('}', '').split()[0]
         info['load'] = float(load_str)
     except Exception:
         pass

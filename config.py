@@ -35,7 +35,7 @@ WORKERS = [
         'cpus': 2,
     },
 
-    # === G4 Machines (PowerPC 74xx, slower but still useful) ===
+    # === G4 Machines (PowerPC 74xx) ===
     {
         'host': '192.168.0.125',
         'port': 5555,
@@ -49,7 +49,7 @@ WORKERS = [
         'host': '192.168.0.115',
         'port': 5555,
         'name': 'g4-powerbook-115',
-        'user': 'sophia',
+        'user': 'sophiacorepb',
         'password': 'Elyanlabs12@',
         'weight': 1.0,
         'cpus': 1,
