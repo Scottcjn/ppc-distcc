@@ -29,6 +29,36 @@ PPC-DistCC distributes C/C++ compilation jobs across multiple PowerPC Macs on yo
 - **Drop-in Replacement** - Use `ppc-gcc` instead of `gcc`
 - **Multi-compiler Support** - GCC, Clang, G++, Clang++
 
+## Prerequisites
+
+**All worker machines must have matching development environments:**
+
+| Requirement | Description |
+|------------|-------------|
+| **Compiler** | Same compiler version (e.g., gcc-10) on all machines |
+| **Headers** | System headers and SDK at compatible versions |
+| **Libraries** | Required libraries (libiconv, libstdc++, etc.) |
+| **Source Tree** | For complex builds, source at same relative path |
+
+### Known Compatibility Issues
+
+| Machine | Issue | Solution |
+|---------|-------|----------|
+| G4 (Tiger/Leopard) | libiconv 5.0 (gcc-10 needs 7.0) | Install libiconv 7.0 or use gcc-7 |
+| G5 (Leopard) | Works with gcc-10 | ✓ Ready |
+
+### Setting Up G4 Machines for gcc-10
+
+```bash
+# Option 1: Install newer libiconv
+curl -O https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.17.tar.gz
+tar xzf libiconv-1.17.tar.gz && cd libiconv-1.17
+./configure --prefix=/usr/local && make && sudo make install
+
+# Option 2: Use gcc-7 instead (already compatible with Tiger/Leopard)
+# Configure build with: CC=ppc-gcc-7 CXX=ppc-g++-7
+```
+
 ## Quick Start
 
 ### 1. Start Workers (on each Mac)
