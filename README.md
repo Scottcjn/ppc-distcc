@@ -265,6 +265,58 @@ PATH_TRANSLATIONS = [
 - [ ] Web dashboard for monitoring
 - [ ] Pump mode (preprocessing on coordinator)
 
+## Related Projects & Documentation
+
+### PPC Compiler Builds
+| Project | Description | Link |
+|---------|-------------|------|
+| **LLVM 3.4.2 PPC** | Pre-built LLVM/Clang for Leopard | [GitHub](https://github.com/Scottcjn/llvm-3.4.2-ppc-leopard) |
+| **GCC 10 PPC** | Building GCC 10 for PowerPC | Coming soon |
+| **Tigerbrew** | Package manager for Tiger/Leopard | [GitHub](https://github.com/mistydemeo/tigerbrew) |
+
+### Setup Guides
+- **Leopard Development Setup** - Install Xcode, Tigerbrew, and modern compilers
+- **Tiger Compatibility** - Working with Python 2.3/2.5 limitations
+- **Cross-Compilation** - Building PPC binaries on modern Macs
+
+### Building the Compilers
+
+Before using ppc-distcc, each worker needs compilers installed:
+
+```bash
+# Install Tigerbrew (on each Mac)
+ruby -e "$(curl -fsSkL raw.github.com/mistydemeo/tigerbrew/go/install)"
+
+# Install GCC 7 (works on Tiger/Leopard)
+brew install gcc@7
+
+# For GCC 10, build from source (Leopard G5 only, or G4 with libiconv update)
+# See: https://github.com/Scottcjn/gcc-10-ppc-build (coming soon)
+```
+
+### AltiVec Optimization
+
+PowerPC G4/G5 chips have AltiVec (Velocity Engine) SIMD instructions. When building compilers, enable AltiVec for faster compilation:
+
+```bash
+# GCC configure with AltiVec
+./configure --with-cpu=G4 --enable-altivec
+
+# Or for G5 (also has AltiVec)
+./configure --with-cpu=970 --enable-altivec
+
+# CFLAGS for AltiVec-optimized builds
+export CFLAGS="-O3 -maltivec -mabi=altivec -mcpu=7450"  # G4
+export CFLAGS="-O3 -maltivec -mabi=altivec -mcpu=970"   # G5
+```
+
+**Potential speedups:** String operations, hashing, and certain compiler internals can benefit from AltiVec vectorization.
+
+### Network Requirements
+- All machines on same subnet (or with routing configured)
+- Port 5555 open for worker communication
+- SSH access for deployment and sync scripts
+
 ## License
 
 MIT License
