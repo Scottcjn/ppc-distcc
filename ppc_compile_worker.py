@@ -86,6 +86,24 @@ for path in ['/Users/sophia/llvm-3.9-build/bin/clang',
         break
 
 
+# Path translation for distributed builds across different user accounts
+# Maps coordinator paths to local worker paths
+LOCAL_HOME = os.path.expanduser('~')
+PATH_TRANSLATIONS = [
+    # Add translations as (from_prefix, to_prefix)
+    ('/Users/sophia/', LOCAL_HOME + '/'),
+    ('/Users/selenamac/', LOCAL_HOME + '/'),
+]
+
+
+def translate_path(path):
+    """Translate a path from coordinator to local worker path"""
+    for from_prefix, to_prefix in PATH_TRANSLATIONS:
+        if path.startswith(from_prefix):
+            return to_prefix + path[len(from_prefix):]
+    return path
+
+
 def get_system_info():
     """Get system info for load balancing"""
     info = {
@@ -231,10 +249,13 @@ def handle_compile_job(sock, job_data):
         cmd = [compiler_path]
         cmd.extend(['-I', tmpdir])
         for inc in include_paths:
-            cmd.extend(['-I', inc])
+            # Translate paths for cross-machine builds
+            cmd.extend(['-I', translate_path(inc)])
         for define in defines:
             cmd.extend(['-D', define])
-        cmd.extend(args)
+        # Translate any absolute paths in other args too
+        for arg in args:
+            cmd.append(translate_path(arg))
         cmd.extend(['-c', source_path, '-o', output_path])
 
         print("[%s] Running: %s" % (job_id, ' '.join(cmd)))
