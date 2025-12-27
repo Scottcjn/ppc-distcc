@@ -141,7 +141,8 @@ def get_system_info():
 
 def recv_exactly(sock, n):
     """Receive exactly n bytes"""
-    data = b''
+    # Use empty string for Py2 (bytes), empty bytes for Py3
+    data = '' if PY2 else ''.encode('utf-8')
     while len(data) < n:
         chunk = sock.recv(n - len(data))
         if not chunk:
@@ -154,7 +155,9 @@ def send_message(sock, msg_type, data):
     """Send a message with length prefix"""
     if isinstance(data, str):
         data = to_bytes(data)
-    msg_type_bytes = to_bytes(msg_type)[:4].ljust(4, b' ')
+    # Pad message type to 4 chars
+    msg_type_str = str(msg_type)[:4].ljust(4, ' ')
+    msg_type_bytes = msg_type_str if PY2 else msg_type_str.encode('utf-8')
     header = struct.pack('!I', len(data)) + msg_type_bytes
     sock.sendall(header + data)
 
@@ -302,7 +305,9 @@ def handle_client(conn, addr):
                 print("Unknown message type: %s" % msg_type)
                 send_message(conn, 'ERR', "Unknown message type: %s" % msg_type)
 
-    except Exception as e:
+    except Exception:
+        import sys
+        e = sys.exc_info()[1]
         print("Error handling %s: %s" % (addr, e))
     finally:
         conn.close()

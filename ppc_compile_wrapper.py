@@ -103,7 +103,9 @@ def send_message(sock, msg_type, data):
     """Send a message with length prefix"""
     if isinstance(data, str):
         data = data.encode('utf-8')
-    header = struct.pack('!I', len(data)) + msg_type.encode('utf-8')[:4].ljust(4, ' ').encode('utf-8')[:4]
+    # Pad message type string to 4 chars before encoding
+    msg_type_padded = msg_type[:4].ljust(4)
+    header = struct.pack('!I', len(data)) + msg_type_padded.encode('utf-8')
     sock.sendall(header + data)
 
 
