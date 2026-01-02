@@ -1,3 +1,5 @@
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![PowerPC](https://img.shields.io/badge/PowerPC-G4%2FG5-orange)](https://github.com/Scottcjn/ppc-distcc) [![distcc](https://img.shields.io/badge/distcc-Distributed-green)](https://github.com/Scottcjn/ppc-distcc)
+
 # PPC-DistCC
 
 Distributed compilation system for PowerPC Macs running Mac OS X Tiger (10.4), Leopard (10.5), and Sorbet Leopard.
