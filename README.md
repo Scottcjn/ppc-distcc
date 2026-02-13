@@ -436,3 +436,10 @@ MIT License
 ## Credits
 
 Inspired by distcc and icecc. Built for the PowerPC Mac preservation community.
+
+
+## 中文简介
+
+Elyan Labs 复古计算项目 - 为 PowerPC 和 SPARC 系统提供现代支持。
+
+Contributed by eelaine-wzw
