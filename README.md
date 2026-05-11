@@ -404,7 +404,7 @@ ruby -e "$(curl -fsSkL raw.github.com/mistydemeo/tigerbrew/go/install)"
 brew install gcc@7
 
 # For GCC 10, build from source (Leopard G5 only, or G4 with libiconv update)
-# See: https://github.com/Scottcjn/gcc-10-ppc-build (coming soon)
+# GCC 10 PPC build notes are coming soon; no separate repo is published yet.
 ```
 
 ### AltiVec Optimization
