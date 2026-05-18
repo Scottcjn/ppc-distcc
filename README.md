@@ -432,7 +432,7 @@ export CFLAGS="-O3 -maltivec -mabi=altivec -mcpu=970"   # G5
 
 ## License
 
-MIT License
+Apache License 2.0
 
 ## Credits
 
