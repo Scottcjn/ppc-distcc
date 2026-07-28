@@ -8,6 +8,7 @@ Usage:
   As daemon:  python ppc_compile_coordinator.py --daemon
 """
 
+import os
 import socket
 import subprocess
 import tempfile
@@ -39,7 +40,7 @@ DEFAULT_WORKERS = [
 
 # Credentials for SSH-based fallback
 SSH_USER = 'sophia'
-SSH_PASS = 'Elyanlabs12@'
+SSH_PASS = os.environ.get('PPC_SSH_PASS', '')
 
 
 @dataclass
