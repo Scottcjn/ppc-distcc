@@ -319,7 +319,16 @@ ppc-gcc -c test.c -o test.o
 ```
 
 ### Headers not found
-The system currently doesn't transfer headers. Use `-I` with absolute paths to system headers.
+The system doesn't transfer headers, so a worker can only open files that already exist on the worker.
+
+You no longer have to write absolute `-I` paths by hand: the wrapper and the coordinator resolve every
+`-I` against your cwd before the job goes out (the worker compiles in its own temp directory, where a
+relative path points at nothing), and the source file's own directory is added automatically so
+`#include "next_to_the_source.h"` resolves the way it does locally.
+
+What still has to be true: the worker must be able to reach that tree — at the same absolute path, or at
+one covered by `PATH_TRANSLATIONS` in `ppc_compile_worker.py`. Generated headers (`.inc`, `.def`) are
+handled separately by `sync_generated_files.sh`.
 
 ## Building Complex Projects (LLVM, etc.)
 

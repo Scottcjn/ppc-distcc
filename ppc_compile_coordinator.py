@@ -99,6 +99,32 @@ def recv_message(sock):
     return msg_type, data
 
 
+def resolve_include_paths(source_path: str, include_paths: List[str]) -> List[str]:
+    """Make include paths mean the same thing on the worker as they do here.
+
+    The worker compiles in a private temp directory, so a relative -I from this
+    machine points at nothing there, and the worker's PATH_TRANSLATIONS table
+    only matches absolute prefixes.  The source file's own directory goes first
+    because gcc searches it for #include "..." and the worker cannot - it only
+    receives the single source file, not its neighbours.
+
+    (Kept local to this module on purpose: like send_message/recv_message, each
+    script here stays self-contained so it can be copied to a machine on its
+    own.)
+    """
+    resolved = []
+    source_dir = os.path.dirname(os.path.abspath(source_path))
+    if source_dir:
+        resolved.append(source_dir)
+    for path in include_paths:
+        if not path:
+            continue
+        abs_path = os.path.abspath(path)
+        if abs_path not in resolved:
+            resolved.append(abs_path)
+    return resolved
+
+
 class DistributedCompiler:
     def __init__(self, workers=None, local_fallback=True):
         self.workers = []
@@ -222,7 +248,7 @@ class DistributedCompiler:
                 'compiler': compiler,
                 'args': args,
                 'source_name': os.path.basename(source_path),
-                'include_paths': include_paths,
+                'include_paths': resolve_include_paths(source_path, include_paths),
                 'defines': defines,
             }
 

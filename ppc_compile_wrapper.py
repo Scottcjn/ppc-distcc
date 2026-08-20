@@ -239,6 +239,35 @@ def get_source_and_output(args):
     return source, output
 
 
+def resolve_include_paths(source_path, include_paths):
+    """Make include paths mean the same thing on the worker as they do here.
+
+    The worker compiles in a private temp directory (cwd=tmpdir), so a relative
+    -I from the build machine points at nothing over there, and the worker's
+    PATH_TRANSLATIONS table only matches absolute prefixes - it can never
+    repair a relative path.  Resolve every -I against our own cwd before it
+    goes on the wire.
+
+    The source file's own directory goes first, because gcc searches it for
+    #include "..." and the worker cannot: it only ever receives the single
+    source file, not its neighbours.
+
+    Empty entries (a trailing bare -I) are dropped rather than turned into the
+    build machine's cwd, which is not what the user asked for.
+    """
+    resolved = []
+    source_dir = os.path.dirname(os.path.abspath(source_path))
+    if source_dir:
+        resolved.append(source_dir)
+    for path in include_paths:
+        if not path:
+            continue
+        abs_path = os.path.abspath(path)
+        if abs_path not in resolved:
+            resolved.append(abs_path)
+    return resolved
+
+
 def send_message(sock, msg_type, data):
     """Send a message with length prefix"""
     if isinstance(data, str):
@@ -335,7 +364,7 @@ def try_remote_compile(host, port, compiler, source_path, output_path, args):
             'compiler': compiler,
             'args': other_args,
             'source_name': os.path.basename(source_path),
-            'include_paths': include_paths,
+            'include_paths': resolve_include_paths(source_path, include_paths),
             'defines': defines,
         }
 

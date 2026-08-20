@@ -163,7 +163,18 @@ class WrapperHelperTests(unittest.TestCase):
         self.assertEqual(job["job_id"], "cli-1234")
         self.assertEqual(job["compiler"], "gcc-10")
         self.assertEqual(job["source_name"], "hello.c")
-        self.assertEqual(job["include_paths"], ["include", "generated/include"])
+        # Include paths go out absolute: the worker compiles in its own temp
+        # directory, so "include" would point at nothing once it lands there.
+        # The source file's own directory leads, standing in for the neighbours
+        # the worker never receives.
+        self.assertEqual(
+            job["include_paths"],
+            [
+                os.path.dirname(str(source)),
+                os.path.join(os.getcwd(), "include"),
+                os.path.join(os.getcwd(), "generated", "include"),
+            ],
+        )
         self.assertEqual(job["defines"], ["DEBUG", "VALUE=1"])
         self.assertEqual(job["args"], ["-O2"])
 
